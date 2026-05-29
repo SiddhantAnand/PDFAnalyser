@@ -45,8 +45,8 @@ public class RAGService {
                 """;
         List<Document> documents = vectorStore.similaritySearch(SearchRequest.builder()
                 .query(prompt)
-                .topK(2)
-                .similarityThreshold(0.5)
+                .topK(10)
+                .similarityThreshold(0.3)
                 .filterExpression("file_name == 'Design patterns.pdf'")
                 .build());
         String context = documents.stream()
