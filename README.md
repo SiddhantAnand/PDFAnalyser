@@ -5,9 +5,10 @@ A Spring Boot application that uses **RAG (Retrieval-Augmented Generation)** to 
 ## Tech Stack
 
 - **Spring Boot 4.0.6** with Spring AI 2.0.0-M8
-- **Google GenAI (Gemini 2.5 Flash)** — Chat/LLM
-- **Ollama (nomic-embed-text)** — Local embeddings (no API calls)
+- **Ollama (llama3.2)** — Chat/LLM (fully local, no API keys needed)
+- **Ollama (nomic-embed-text)** — Local embeddings
 - **PgVector (PostgreSQL)** — Vector store
+- **JDBC Chat Memory** — Short-term conversation memory
 - **Lombok**
 
 ## Prerequisites
@@ -30,9 +31,10 @@ docker run -d \
   pgvector/pgvector:pg17
 ```
 
-### 2. Pull the Ollama embedding model
+### 2. Pull the Ollama models
 
 ```bash
+ollama pull llama3.2
 ollama pull nomic-embed-text
 ```
 
@@ -45,7 +47,6 @@ cp src/main/resources/application-example.yaml src/main/resources/application.ya
 ```
 
 Update `application.yaml` with:
-- Your Google GenAI API key (get one from [Google AI Studio](https://aistudio.google.com/app/apikey))
 - Your PostgreSQL credentials
 
 ### 4. Build and run
@@ -75,4 +76,5 @@ src/main/java/com/salogics/pdfanalyser/
 ## How It Works
 
 1. **Ingest**: `RAGService.ingestPdfToVectorStore()` reads a PDF, splits it into chunks, and stores embeddings in PgVector using Ollama (local).
-2. **Query**: `RAGService.askAI(prompt)` performs a similarity search on the vector store, retrieves relevant chunks, and sends them as context to Gemini for a grounded response.
+2. **Query**: `RAGService.askAI(prompt)` performs a similarity search on the vector store, retrieves relevant chunks, and sends them as context to Ollama (llama3.2) for a grounded response.
+3. **Chat with Memory**: `RAGService.askAIWithAdvisors(prompt, userId)` uses both short-term memory (MessageChatMemoryAdvisor via JDBC) and long-term memory (VectorStoreChatMemoryAdvisor) to maintain conversation context across turns.

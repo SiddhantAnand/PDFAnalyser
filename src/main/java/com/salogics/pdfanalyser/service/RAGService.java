@@ -1,8 +1,15 @@
 package com.salogics.pdfanalyser.service;
 
+import com.salogics.pdfanalyser.advisor.TokenUsageAdvisor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
+import org.springframework.ai.chat.client.advisor.SafeGuardAdvisor;
 import org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor;
+import org.springframework.ai.chat.client.advisor.api.Advisor;
+import org.springframework.ai.chat.client.advisor.vectorstore.QuestionAnswerAdvisor;
+import org.springframework.ai.chat.client.advisor.vectorstore.VectorStoreChatMemoryAdvisor;
+import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.embedding.EmbeddingModel;
@@ -26,8 +33,46 @@ public class RAGService {
     private final EmbeddingModel embeddingModel;
     private final VectorStore vectorStore;
 
+    private final ChatMemory chatMemory;
+
     @Value("classpath:Design patterns.pdf")
     Resource pdfFile;
+
+    public String askAIWithAdvisors(String prompt, String userId){
+        return chatClient.prompt()
+                .system("""
+                        You are a AI assistant called Jarvis.
+                        Greet users with your name and the user name if you know their name.
+                        Answer in a friendly, conversational tone.
+                        """)
+                .user(prompt)
+                .advisors(
+                        //Safe Gaurd
+                        new SafeGuardAdvisor(List.of("hacking")),
+                        //Short term memory
+                        MessageChatMemoryAdvisor.builder(chatMemory)
+                                    .order(Advisor.DEFAULT_CHAT_MEMORY_PRECEDENCE_ORDER)
+                                        .build(),
+
+                        // Long term memory
+                        VectorStoreChatMemoryAdvisor.builder(vectorStore)
+                                    .order(Advisor.DEFAULT_CHAT_MEMORY_PRECEDENCE_ORDER + 1)
+                                .defaultTopK(4)
+                                .build(),
+                        //RAG Family
+                        QuestionAnswerAdvisor.builder(vectorStore)
+                                .searchRequest(SearchRequest.builder()
+                                        .filterExpression("file_name == 'Design patterns.pdf'")
+                                        .topK(4)
+                                        .similarityThreshold(0.3)
+                                        .build())
+                                .build(),
+                        new TokenUsageAdvisor()
+                )
+                .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, userId))
+                                .call()
+                .content();
+    }
 
     public String askAI(String prompt){
         String template = """
@@ -58,7 +103,6 @@ public class RAGService {
         return  chatClient.prompt()
                 .system(systemPrompt)
                 .user(prompt)
-                .advisors(new SimpleLoggerAdvisor())
                 .call()
                 .content();
     }

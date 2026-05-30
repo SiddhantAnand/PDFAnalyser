@@ -3,7 +3,7 @@ spring:
     name: pdfanalyser
   ai:
     model:
-      chat: google-genai
+      chat: ollama
       embedding: ollama
     google:
       genai:
@@ -14,6 +14,9 @@ spring:
             temperature: 0.7
     ollama:
       base-url: http://localhost:11434
+      chat:
+        options:
+          model: llama3.2
       embedding:
         options:
           model: nomic-embed-text
@@ -21,6 +24,12 @@ spring:
       pgvector:
         initialize-schema: true
         dimensions: 768
+    chat:
+      memory:
+        repository:
+          jdbc:
+            initialize-schema: always
+            table-name: chat_memory
 
   datasource:
     url: jdbc:postgresql://localhost:5434/vector-db
